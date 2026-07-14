@@ -1,0 +1,348 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Support CRM — Ticket Desk</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@500;600&display=swap" rel="stylesheet">
+<script>
+tailwind.config = {
+  theme: {
+    extend: {
+      fontFamily: {
+        sans: ['Inter', 'system-ui', 'sans-serif'],
+        mono: ['JetBrains Mono', 'monospace'],
+      },
+      colors: {
+        ink: '#12262b',
+        pine: { DEFAULT: '#0f5c5a', dark: '#0a4544', light: '#e4f2f1' },
+        paper: '#f7f8f7',
+      }
+    }
+  }
+}
+</script>
+<style>
+  body { background: #f7f8f7; }
+  .status-pill { font-size: 11px; font-weight: 600; letter-spacing: .03em; padding: 3px 10px; border-radius: 9999px; }
+  .st-Open        { background:#fef3e2; color:#9a5b00; }
+  .st-InProgress  { background:#e4f2f1; color:#0f5c5a; }
+  .st-Closed      { background:#eceef0; color:#5b6770; }
+  .view { display:none; }
+  .view.active { display:block; }
+  input:focus, textarea:focus, select:focus { outline: 2px solid #0f5c5a; outline-offset: 0; }
+</style>
+</head>
+<body class="font-sans text-ink min-h-screen">
+
+<!-- Header -->
+<header class="bg-white border-b border-slate-200">
+  <div class="max-w-5xl mx-auto px-4 py-4 flex items-center justify-between">
+    <a href="#" onclick="showList(); return false;" class="flex items-center gap-3">
+      <div class="w-9 h-9 rounded-lg bg-pine text-white grid place-items-center font-mono font-semibold text-sm">SC</div>
+      <div>
+        <h1 class="font-semibold leading-tight">Support CRM</h1>
+        <p class="text-xs text-slate-500 leading-tight">Customer ticket desk</p>
+      </div>
+    </a>
+    <button onclick="showCreate()" class="bg-pine hover:bg-pine-dark text-white text-sm font-medium px-4 py-2 rounded-lg transition-colors">+ New ticket</button>
+  </div>
+</header>
+
+<main class="max-w-5xl mx-auto px-4 py-6">
+
+  <!-- ================= LIST VIEW ================= -->
+  <section id="view-list" class="view active">
+
+    <!-- Stats -->
+    <div class="grid grid-cols-3 gap-3 mb-5" id="stats"></div>
+
+    <!-- Search + filter -->
+    <div class="flex flex-col sm:flex-row gap-3 mb-4">
+      <input id="search" type="text" placeholder="Search by name, email, ticket ID or subject…"
+             class="flex-1 bg-white border border-slate-300 rounded-lg px-4 py-2.5 text-sm"
+             oninput="debouncedLoad()">
+      <div class="flex gap-1 bg-white border border-slate-300 rounded-lg p-1" id="filter-tabs">
+        <button data-status="" class="filter-tab px-3 py-1.5 text-sm rounded-md font-medium">All</button>
+        <button data-status="Open" class="filter-tab px-3 py-1.5 text-sm rounded-md font-medium">Open</button>
+        <button data-status="In Progress" class="filter-tab px-3 py-1.5 text-sm rounded-md font-medium">In Progress</button>
+        <button data-status="Closed" class="filter-tab px-3 py-1.5 text-sm rounded-md font-medium">Closed</button>
+      </div>
+    </div>
+
+    <!-- Ticket table -->
+    <div class="bg-white border border-slate-200 rounded-xl overflow-hidden">
+      <table class="w-full text-sm">
+        <thead>
+          <tr class="text-left text-xs uppercase tracking-wide text-slate-500 border-b border-slate-200">
+            <th class="px-4 py-3">Ticket</th>
+            <th class="px-4 py-3">Customer</th>
+            <th class="px-4 py-3 hidden sm:table-cell">Subject</th>
+            <th class="px-4 py-3">Status</th>
+            <th class="px-4 py-3 hidden md:table-cell">Created</th>
+          </tr>
+        </thead>
+        <tbody id="ticket-rows"></tbody>
+      </table>
+      <div id="empty" class="hidden text-center py-14 text-slate-500 text-sm">
+        No tickets found. <button onclick="showCreate()" class="text-pine font-medium underline">Create the first one</button>
+      </div>
+    </div>
+  </section>
+
+  <!-- ================= CREATE VIEW ================= -->
+  <section id="view-create" class="view">
+    <button onclick="showList()" class="text-sm text-slate-500 hover:text-ink mb-4">← Back to tickets</button>
+    <div class="bg-white border border-slate-200 rounded-xl p-6 max-w-xl">
+      <h2 class="font-semibold text-lg mb-1">Create a ticket</h2>
+      <p class="text-sm text-slate-500 mb-5">A ticket ID is generated automatically when you save.</p>
+
+      <div class="space-y-4">
+        <div class="grid sm:grid-cols-2 gap-4">
+          <div>
+            <label class="block text-sm font-medium mb-1" for="f-name">Customer name</label>
+            <input id="f-name" class="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm" placeholder="Asha Patel">
+          </div>
+          <div>
+            <label class="block text-sm font-medium mb-1" for="f-email">Customer email</label>
+            <input id="f-email" type="email" class="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm" placeholder="asha@example.com">
+          </div>
+        </div>
+        <div>
+          <label class="block text-sm font-medium mb-1" for="f-subject">Subject</label>
+          <input id="f-subject" class="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm" placeholder="Payment failed on checkout">
+        </div>
+        <div>
+          <label class="block text-sm font-medium mb-1" for="f-desc">Description</label>
+          <textarea id="f-desc" rows="4" class="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm" placeholder="Describe the issue in detail…"></textarea>
+        </div>
+        <p id="create-error" class="hidden text-sm text-red-600"></p>
+        <button onclick="createTicket()" id="create-btn"
+                class="bg-pine hover:bg-pine-dark text-white text-sm font-medium px-5 py-2.5 rounded-lg transition-colors">
+          Create ticket
+        </button>
+      </div>
+    </div>
+  </section>
+
+  <!-- ================= DETAIL VIEW ================= -->
+  <section id="view-detail" class="view">
+    <button onclick="showList()" class="text-sm text-slate-500 hover:text-ink mb-4">← Back to tickets</button>
+    <div id="detail-body"></div>
+  </section>
+
+</main>
+
+<footer class="max-w-5xl mx-auto px-4 py-6 text-xs text-slate-400">
+  Support CRM · FastAPI + SQLite · Built for the Datastraw Technologies assessment
+</footer>
+
+<script>
+// ---------------------------------------------------------------------------
+// State
+// ---------------------------------------------------------------------------
+let currentStatus = "";   // active filter tab
+let debounceTimer = null;
+
+const $ = (id) => document.getElementById(id);
+const esc = (s) => String(s ?? "").replace(/[&<>"']/g, c =>
+  ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const fmtDate = (iso) => new Date(iso).toLocaleString(undefined,
+  { day:'numeric', month:'short', year:'numeric', hour:'2-digit', minute:'2-digit' });
+const pillClass = (s) => 'st-' + s.replace(/\s/g,'');
+
+// ---------------------------------------------------------------------------
+// View switching (simple SPA: three sections, one visible at a time)
+// ---------------------------------------------------------------------------
+function switchView(name) {
+  document.querySelectorAll('.view').forEach(v => v.classList.remove('active'));
+  $('view-' + name).classList.add('active');
+  window.scrollTo(0, 0);
+}
+function showList()   { switchView('list'); loadTickets(); }
+function showCreate() {
+  ['f-name','f-email','f-subject','f-desc'].forEach(id => $(id).value = '');
+  $('create-error').classList.add('hidden');
+  switchView('create');
+}
+
+// ---------------------------------------------------------------------------
+// List view: fetch + render, live search, status filter, stats
+// ---------------------------------------------------------------------------
+function debouncedLoad() {
+  clearTimeout(debounceTimer);
+  debounceTimer = setTimeout(loadTickets, 250);   // search-as-you-type
+}
+
+async function loadTickets() {
+  const params = new URLSearchParams();
+  if (currentStatus) params.set('status', currentStatus);
+  const q = $('search').value.trim();
+  if (q) params.set('search', q);
+
+  const res = await fetch('/api/tickets?' + params.toString());
+  const tickets = await res.json();
+
+  const tbody = $('ticket-rows');
+  tbody.innerHTML = tickets.map(t => `
+    <tr class="border-b border-slate-100 last:border-0 hover:bg-pine-light/40 cursor-pointer transition-colors"
+        onclick="openTicket('${esc(t.ticket_id)}')">
+      <td class="px-4 py-3 font-mono font-semibold text-pine">${esc(t.ticket_id)}</td>
+      <td class="px-4 py-3">${esc(t.customer_name)}</td>
+      <td class="px-4 py-3 hidden sm:table-cell text-slate-600 max-w-xs truncate">${esc(t.subject)}</td>
+      <td class="px-4 py-3"><span class="status-pill ${pillClass(t.status)}">${esc(t.status)}</span></td>
+      <td class="px-4 py-3 hidden md:table-cell text-slate-500">${fmtDate(t.created_at)}</td>
+    </tr>`).join('');
+
+  $('empty').classList.toggle('hidden', tickets.length > 0);
+  renderStats();
+}
+
+async function renderStats() {
+  // three quick counts for the dashboard cards
+  const statuses = ['Open', 'In Progress', 'Closed'];
+  const counts = await Promise.all(statuses.map(s =>
+    fetch('/api/tickets?status=' + encodeURIComponent(s)).then(r => r.json()).then(a => a.length)));
+  $('stats').innerHTML = statuses.map((s, i) => `
+    <div class="bg-white border border-slate-200 rounded-xl px-4 py-3">
+      <p class="text-xs text-slate-500">${s}</p>
+      <p class="text-2xl font-semibold ${s==='Open' ? 'text-amber-700' : s==='In Progress' ? 'text-pine' : 'text-slate-500'}">${counts[i]}</p>
+    </div>`).join('');
+}
+
+// Filter tabs
+document.querySelectorAll('.filter-tab').forEach(btn => {
+  btn.addEventListener('click', () => {
+    currentStatus = btn.dataset.status;
+    document.querySelectorAll('.filter-tab').forEach(b =>
+      b.classList.toggle('bg-pine-light', b === btn));
+    loadTickets();
+  });
+});
+document.querySelector('.filter-tab[data-status=""]').classList.add('bg-pine-light');
+
+// ---------------------------------------------------------------------------
+// Create view
+// ---------------------------------------------------------------------------
+async function createTicket() {
+  const body = {
+    customer_name:  $('f-name').value.trim(),
+    customer_email: $('f-email').value.trim(),
+    subject:        $('f-subject').value.trim(),
+    description:    $('f-desc').value.trim(),
+  };
+  const err = $('create-error');
+  err.classList.add('hidden');
+
+  if (!body.customer_name || !body.customer_email || !body.subject || !body.description) {
+    err.textContent = 'All fields are required.';
+    err.classList.remove('hidden');
+    return;
+  }
+
+  $('create-btn').disabled = true;
+  const res = await fetch('/api/tickets', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(body),
+  });
+  $('create-btn').disabled = false;
+
+  if (!res.ok) {
+    const data = await res.json().catch(() => ({}));
+    err.textContent = data.detail?.[0]?.msg || data.detail || 'Could not create the ticket. Check the email address.';
+    err.classList.remove('hidden');
+    return;
+  }
+  const data = await res.json();
+  openTicket(data.ticket_id);
+}
+
+// ---------------------------------------------------------------------------
+// Detail view: full ticket, status update, notes
+// ---------------------------------------------------------------------------
+async function openTicket(ticketId) {
+  const res = await fetch('/api/tickets/' + encodeURIComponent(ticketId));
+  if (!res.ok) { alert('Ticket not found.'); return; }
+  const t = await res.json();
+
+  $('detail-body').innerHTML = `
+    <div class="grid md:grid-cols-3 gap-5">
+      <!-- Main card -->
+      <div class="md:col-span-2 bg-white border border-slate-200 rounded-xl p-6">
+        <div class="flex items-start justify-between gap-4 mb-1">
+          <h2 class="font-semibold text-lg">${esc(t.subject)}</h2>
+          <span class="status-pill ${pillClass(t.status)} shrink-0">${esc(t.status)}</span>
+        </div>
+        <p class="font-mono text-sm text-pine font-semibold mb-4">${esc(t.ticket_id)}</p>
+        <p class="text-sm text-slate-700 whitespace-pre-wrap mb-6">${esc(t.description)}</p>
+
+        <h3 class="text-sm font-semibold mb-2">Notes <span class="text-slate-400 font-normal">(${t.notes.length})</span></h3>
+        <div class="space-y-2 mb-4">
+          ${t.notes.length ? t.notes.map(n => `
+            <div class="bg-paper border border-slate-200 rounded-lg px-3 py-2">
+              <p class="text-sm whitespace-pre-wrap">${esc(n.note_text)}</p>
+              <p class="text-xs text-slate-400 mt-1">${fmtDate(n.created_at)}</p>
+            </div>`).join('')
+          : '<p class="text-sm text-slate-400">No notes yet. Add the first update below.</p>'}
+        </div>
+        <div class="flex gap-2">
+          <input id="note-input" placeholder="Add an internal note…"
+                 class="flex-1 border border-slate-300 rounded-lg px-3 py-2 text-sm">
+          <button onclick="addNote('${esc(t.ticket_id)}')"
+                  class="bg-pine hover:bg-pine-dark text-white text-sm font-medium px-4 rounded-lg transition-colors">Add note</button>
+        </div>
+      </div>
+
+      <!-- Sidebar -->
+      <div class="space-y-4">
+        <div class="bg-white border border-slate-200 rounded-xl p-5">
+          <h3 class="text-sm font-semibold mb-3">Customer</h3>
+          <p class="text-sm">${esc(t.customer_name)}</p>
+          <p class="text-sm text-slate-500">${esc(t.customer_email)}</p>
+        </div>
+        <div class="bg-white border border-slate-200 rounded-xl p-5">
+          <h3 class="text-sm font-semibold mb-3">Update status</h3>
+          <select id="status-select" class="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm mb-3">
+            ${['Open','In Progress','Closed'].map(s =>
+              `<option ${s===t.status ? 'selected' : ''}>${s}</option>`).join('')}
+          </select>
+          <button onclick="updateStatus('${esc(t.ticket_id)}')"
+                  class="w-full bg-pine hover:bg-pine-dark text-white text-sm font-medium py-2 rounded-lg transition-colors">Save status</button>
+        </div>
+        <div class="bg-white border border-slate-200 rounded-xl p-5 text-sm text-slate-500 space-y-1">
+          <p>Created <span class="text-ink">${fmtDate(t.created_at)}</span></p>
+          <p>Updated <span class="text-ink">${fmtDate(t.updated_at)}</span></p>
+        </div>
+      </div>
+    </div>`;
+  switchView('detail');
+}
+
+async function updateStatus(ticketId) {
+  await fetch('/api/tickets/' + encodeURIComponent(ticketId), {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ status: $('status-select').value }),
+  });
+  openTicket(ticketId);   // refresh the detail view
+}
+
+async function addNote(ticketId) {
+  const text = $('note-input').value.trim();
+  if (!text) return;
+  await fetch('/api/tickets/' + encodeURIComponent(ticketId), {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ notes: text }),
+  });
+  openTicket(ticketId);
+}
+
+// Initial load
+loadTickets();
+</script>
+</body>
+</html>
