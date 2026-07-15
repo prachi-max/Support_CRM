@@ -3,7 +3,7 @@
 A full-stack customer support ticketing system built for the Datastraw Technologies assessment. Support agents can create tickets, search and filter them, update statuses, and add internal notes.
 
 **Live demo:** https://web-production-435e58.up.railway.app/
-**Demo video:** `<paste your video link here>`
+**Demo video:** https://www.loom.com/share/5b6bc9c3c71648ca9c76a70dad6b03f0
 
 ## Features
 
